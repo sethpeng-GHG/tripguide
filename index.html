@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026家族富士新春旅 - Kuromi Family Trip</title>
+    
+    <!-- 1. Tailwind CSS (介面樣式) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        purple: { 50: '#faf5ff', 100: '#f3e8ff', 200: '#e9d5ff', 300: '#d8b4fe', 400: '#c084fc', 500: '#a855f7', 600: '#9333ea', 700: '#7e22ce', 800: '#6b21a8', 900: '#581c87' },
+                        pink: { 50: '#fdf2f8', 100: '#fce7f3', 200: '#fbcfe8', 300: '#f9a8d4', 400: '#f472b6', 500: '#ec4899', 600: '#db2777', 700: '#be185d', 800: '#9d174d', 900: '#831843' },
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-down': 'slideDown 0.3s ease-out forwards',
+                        'bounce-slow': 'bounce 2s infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideDown: {
+                            '0%': { opacity: '0', height: '0', transform: 'translateY(-10px)' },
+                            '100%': { opacity: '1', height: 'auto', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- 2. React & Babel (核心程式庫) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons (圖示) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- 3. Firebase SDK (傳統相容模式，確保本地檔案可直接執行) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        input, select { font-size: 16px; }
+    </style>
+</head>
+<body class="bg-[#FDF7FF] text-gray-900 selection:bg-purple-200">
+    
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- Firebase 設定 (依照您的指示填入) ---
+        const getFirebaseConfig = () => {
+            const firebaseConfig = {
+              apiKey: "AIzaSyAhf5n5Dl_LVz9alr0okfPkuounxrmJEN8",
+              authDomain: "kuromi-2026-trip.firebaseapp.com",
+              projectId: "kuromi-2026-trip",
+              storageBucket: "kuromi-2026-trip.firebasestorage.app",
+              messagingSenderId: "1008106116830",
+              appId: "1:1008106116830:web:637ece413b2ad21c20144f"
+            };
+            return firebaseConfig;
+        };
+
+        // --- 預設行程資料 (離線備案) ---
+        const TRIP_START_DATE = new Date("2026-02-13T00:00:00");
+        const INITIAL_ITINERARY = [
+            {
+                day: 1, date: "2026/02/13 (五)", title: "啟程：從台中到橫濱港", stay: "Comfort Hotel Yokohama Kannai",
+                events: [
+                    { time: "07:30", activity: "台中高鐵站集合 (早餐車上吃)", location: "台中高鐵", type: "transport" },
+                    { time: "07:53", activity: "搭乘高鐵 1302 車次前往桃園", location: "往桃園", type: "transport" },
+                    { time: "12:35", activity: "華航 CI104 起飛", location: "桃園機場 (TPE)", type: "plane" },
+                    { time: "16:35", activity: "抵達東京成田機場 (NRT)", location: "成田機場", type: "plane" },
+                    { time: "18:19", activity: "搭乘 N'EX 42號 前往橫濱", location: "JR 成田空港站", type: "transport" },
+                    { time: "19:43", activity: "抵達 JR 橫濱站，轉乘根岸線至關內站", location: "橫濱", type: "transport" },
+                    { time: "20:30", activity: "晚餐：橫濱中華街", location: "中華街", type: "food" },
+                ]
+            },
+            {
+                day: 2, date: "2026/02/14 (六)", title: "抉擇：粉紅櫻花 vs 古都鎌倉", stay: "Hotel Regina Kawaguchiko (溫泉!)",
+                note: "命運的抉擇點！看花況決定去哪邊！",
+                events: [
+                    { time: "08:30", activity: "飯店集合出發 (包車開始)", location: "橫濱", type: "transport" },
+                    { time: "09:00", activity: "【命運抉擇點】Plan A 或 Plan B", location: "決策時刻", type: "decision" },
+                    { time: "17:30", activity: "抵達河口湖飯店 Check-in", location: "河口湖", type: "stay" },
+                    { time: "18:30", activity: "飯店懷石料理晚餐", location: "飯店餐廳", type: "food" },
+                ],
+                plans: {
+                    A: { title: "Plan A: 伊豆河津櫻版", desc: "花開了就去這！粉紅色的世界。", points: ["河津櫻花祭 (賞花)", "午餐吃屋台", "經天城越往河口湖 (車程較久)"] },
+                    B: { title: "Plan B: 鎌倉古都版", desc: "想輕鬆就去這！看大佛與海。", points: ["鶴岡八幡宮 & 小町通", "鎌倉大佛 & 江之島", "看海邊風景"] }
+                }
+            },
+            {
+                day: 3, date: "2026/02/15 (日)", title: "絕景：富士山老大的地盤", stay: "Hotel Regina Kawaguchiko",
+                events: [
+                    { time: "08:30", activity: "飯店出發", location: "河口湖", type: "transport" },
+                    { time: "09:00", activity: "忍野八海 (水超清澈!)", location: "忍野村", type: "activity" },
+                    { time: "10:30", activity: "北口本宮富士淺間神社 (巨大神木)", location: "富士吉田", type: "activity" },
+                    { time: "12:00", activity: "午餐三選一 (不動茶屋/天婦羅/Sylvans)", location: "河口湖周邊", type: "food" },
+                    { time: "13:30", activity: "天上山公園纜車 (看全景)", location: "天上山", type: "activity" },
+                    { time: "15:00", activity: "西湖療癒之里根場 (童話茅草屋)", location: "西湖", type: "activity" },
+                    { time: "17:30", activity: "返回飯店享用高級料理", location: "飯店", type: "food" },
+                ]
+            },
+            {
+                day: 4, date: "2026/02/16 (一)", title: "圍爐：Outlet 血拼與除夕大餐", stay: "東京大久保秘覓公寓 (SL Building)",
+                events: [
+                    { time: "08:30", activity: "飯店退房 (拜拜富士山)", location: "河口湖", type: "transport" },
+                    { time: "09:00", activity: "山中湖 (餵天鵝)", location: "山中湖", type: "activity" },
+                    { time: "10:30", activity: "御殿場 Outlet (買買買!)", location: "御殿場", type: "shopping" },
+                    { time: "14:00", activity: "準時發車 (絕對不能遲到!)", location: "御殿場", type: "transport" },
+                    { time: "15:00", activity: "海老名服務區 (買哈密瓜麵包)", location: "海老名 SA", type: "food" },
+                    { time: "16:30", activity: "東京公寓 Check-in (準備戰鬥裝)", location: "新大久保", type: "stay" },
+                    { time: "18:30", activity: "除夕圍爐：六歌仙 (和牛帝王蟹吃到飽)", location: "新宿", type: "food" },
+                ]
+            },
+            {
+                day: 5, date: "2026/02/17 (二)", title: "都會：東京潮流大冒險", stay: "東京大久保秘覓公寓 (SL Building)",
+                events: [
+                    { time: "09:30", activity: "悠閒出門 (搭電車)", location: "新大久保站", type: "transport" },
+                    { time: "10:00", activity: "明治神宮 (市中心大森林)", location: "原宿", type: "activity" },
+                    { time: "12:30", activity: "惠比壽花園廣場 (午餐吃洋食)", location: "惠比壽", type: "food" },
+                    { time: "14:30", activity: "自由活動 (涉谷/原宿/新宿)", location: "東京市區", type: "shopping" },
+                    { time: "18:30", activity: "晚餐集合 (炸豬排/藥妝)", location: "新宿", type: "food" },
+                ]
+            },
+            {
+                day: 6, date: "2026/02/18 (三)", title: "賦歸：美味的鰻魚飯", stay: "溫暖的家",
+                events: [
+                    { time: "08:30", activity: "公寓退房 (專車接送)", location: "新大久保", type: "transport" },
+                    { time: "10:00", activity: "機場寄放行李 (成田 T2)", location: "成田機場", type: "misc" },
+                    { time: "11:00", activity: "成田山新勝寺 (抽川豐號碼牌)", location: "成田山", type: "activity" },
+                    { time: "12:30", activity: "午餐：鰻魚飯 (最後一餐吃好點)", location: "成田參道", type: "food" },
+                    { time: "14:31", activity: "搭 JR 返回機場 (底線 14:46)", location: "往機場", type: "transport" },
+                    { time: "15:00", activity: "領行李/報到 (CI1105)", location: "成田機場 T2", type: "plane" },
+                    { time: "20:35", activity: "抵達桃園機場", location: "桃園", type: "plane" },
+                    { time: "23:21", activity: "高鐵 567 車次回台中", location: "往台中", type: "transport" },
+                ]
+            }
+        ];
+        
+        // 圖示元件
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { if(window.lucide) window.lucide.createIcons(); });
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        // --- 全域錯誤提示元件 ---
+        const GlobalErrorBanner = ({ error, isOffline }) => {
+            if (!error) return null;
+            return (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 mx-4 mt-20 rounded-r-lg shadow-sm animate-fade-in relative z-40">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Icon name="alert-triangle" className="text-red-500" />
+                        <h3 className="font-bold text-red-700">Firebase 連線異常</h3>
+                    </div>
+                    <p className="text-sm text-red-600 mb-2">
+                        {error.code === 'permission-denied' 
+                            ? '權限被拒絕。請到 Firebase 後台開啟 Firestore 權限規則 (Rules)。'
+                            : `連線失敗 (${error.message})`}
+                    </p>
+                    {isOffline && (
+                        <p className="text-sm text-gray-700 font-bold bg-gray-100 p-2 rounded">
+                            ✨ 已自動切換至「離線瀏覽模式」，您可以正常查看行程，但無法儲存修改。
+                        </p>
+                    )}
+                </div>
+            );
+        };
+
+        // --- Firebase Hook (核心邏輯) ---
+        const useFirebaseItinerary = () => {
+            const [data, setData] = useState(INITIAL_ITINERARY);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [db, setDb] = useState(null);
+            const [isOffline, setIsOffline] = useState(false);
+
+            useEffect(() => {
+                const initFirebase = async () => {
+                    try {
+                        // 1. 初始化 Firebase
+                        if (!firebase.apps.length) {
+                            firebase.initializeApp(getFirebaseConfig());
+                        }
+                        
+                        const auth = firebase.auth();
+                        const firestore = firebase.firestore();
+                        setDb(firestore);
+
+                        // 2. 嘗試匿名登入 (包在 try-catch 中，如果本地檔案執行失敗則切換離線)
+                        try {
+                            await auth.signInAnonymously();
+                        } catch (authErr) {
+                            console.warn("Auth failed (likely file:// protocol), switching to offline mode:", authErr);
+                            setIsOffline(true);
+                            setLoading(false);
+                            return;
+                        }
+
+                        // 3. 監聽登入狀態與資料
+                        auth.onAuthStateChanged((user) => {
+                            if (user) {
+                                // 路徑：artifacts/{projectId}/public/data/itinerary/main
+                                const appId = "trip-itinerary-ce0c8"; 
+                                const docRef = firestore.collection('artifacts').doc(appId)
+                                                        .collection('public').doc('data')
+                                                        .collection('itinerary').doc('main');
+                                
+                                docRef.onSnapshot(async (snapshot) => {
+                                    setError(null);
+                                    if (snapshot.exists) {
+                                        console.log("Loaded data from Firestore");
+                                        setData(snapshot.data().days);
+                                    } else {
+                                        // 第一次執行，寫入預設資料
+                                        console.log("Seeding initial data...");
+                                        try {
+                                            await docRef.set({ days: INITIAL_ITINERARY });
+                                            setData(INITIAL_ITINERARY);
+                                        } catch (seedErr) {
+                                            console.error("Seeding error:", seedErr);
+                                            // 如果寫入失敗(通常是權限)，還是顯示預設資料，但跳錯
+                                            setError(seedErr);
+                                            setIsOffline(true); 
+                                        }
+                                    }
+                                    setLoading(false);
+                                }, (err) => {
+                                    console.error("Snapshot error:", err);
+                                    setError(err);
+                                    setIsOffline(true); // 讀取失敗也切換離線
+                                    setLoading(false);
+                                });
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Init Error:", err);
+                        setError(err);
+                        setIsOffline(true);
+                        setLoading(false);
+                    }
+                };
+
+                initFirebase();
+            }, []);
+
+            const updateItinerary = async (newItinerary) => {
+                // 如果是離線模式或沒有資料庫連線，只更新本地畫面
+                if (isOffline || !db) {
+                    setData(newItinerary); 
+                    alert("目前為離線模式，變更僅暫時儲存於此頁面，重新整理後將消失。");
+                    return;
+                }
+                const appId = "trip-itinerary-ce0c8";
+                const docRef = db.collection('artifacts').doc(appId)
+                                 .collection('public').doc('data')
+                                 .collection('itinerary').doc('main');
+                try {
+                    await docRef.set({ days: newItinerary });
+                    setError(null);
+                } catch (err) {
+                    console.error("Update error:", err);
+                    setError(err);
+                    alert(`儲存失敗: ${err.message} (請檢查 Firebase Rules)`);
+                }
+            };
+
+            return { itinerary: data, loading, error, updateItinerary, isFirebaseEnabled: !!db && !isOffline, isOffline };
+        };
+
+        // --- UI 元件 ---
+
+        const Navbar = ({ activeTab, setActiveTab }) => {
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const navItems = [
+                { id: 'home', label: '首頁', icon: 'home' },
+                { id: 'itinerary', label: '行程', icon: 'calendar' },
+                { id: 'gallery', label: '相簿', icon: 'camera' },
+                { id: 'expenses', label: '記帳', icon: 'wallet' },
+            ];
+
+            return (
+                <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-sm z-50 border-b border-purple-100">
+                    <div className="max-w-4xl mx-auto px-4">
+                        <div className="flex justify-between items-center h-16">
+                            <div className="flex items-center gap-2 font-bold text-xl text-purple-800 cursor-pointer" onClick={() => setActiveTab('home')}>
+                                <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-purple-600">
+                                    <img 
+                                        src="image_5094c3.png" 
+                                        alt="Kuromi" 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.parentNode.innerHTML = '<i data-lucide="cat" width="20" height="20" class="text-purple-600"></i>';
+                                            if(window.lucide) window.lucide.createIcons();
+                                        }}
+                                    />
+                                </div>
+                                <span>家族富士新春旅</span>
+                            </div>
+                            <div className="md:hidden">
+                                <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-purple-800">
+                                    <Icon name={isMenuOpen ? "x" : "menu"} size={24} />
+                                </button>
+                            </div>
+                            <div className="hidden md:flex gap-6">
+                                {navItems.map((item) => (
+                                    <button key={item.id} onClick={() => setActiveTab(item.id)}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all font-medium ${activeTab === item.id ? 'bg-purple-100 text-purple-700' : 'text-gray-500 hover:text-purple-500 hover:bg-purple-50'}`}>
+                                        <Icon name={item.icon} size={20} />
+                                        <span>{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    {isMenuOpen && (
+                        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg absolute w-full animate-slide-down">
+                            <div className="flex flex-col p-4 gap-2">
+                                {navItems.map((item) => (
+                                    <button key={item.id} onClick={() => { setActiveTab(item.id); setIsMenuOpen(false); }}
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl ${activeTab === item.id ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                        <Icon name={item.icon} size={20} />
+                                        <span>{item.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </nav>
+            );
+        };
+
+        const Countdown = () => {
+            const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0 });
+            useEffect(() => {
+                const calculateTimeLeft = () => {
+                    const difference = +TRIP_START_DATE - +new Date();
+                    return difference > 0 ? {
+                        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+                        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+                    } : { days: 0, hours: 0 };
+                };
+                setTimeLeft(calculateTimeLeft());
+                const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000 * 60 * 60);
+                return () => clearInterval(timer);
+            }, []);
+            return (
+                <div className="inline-flex gap-4 bg-black/60 backdrop-blur-md px-6 py-3 rounded-2xl text-white mb-6 border border-purple-500/30">
+                    <div className="text-center"><span className="block text-2xl font-bold font-mono text-purple-300">{timeLeft.days}</span><span className="text-xs uppercase tracking-wider opacity-80">Days</span></div>
+                    <div className="w-[1px] bg-white/20"></div>
+                    <div className="text-center"><span className="block text-2xl font-bold font-mono text-purple-300">{timeLeft.hours}</span><span className="text-xs uppercase tracking-wider opacity-80">Hours</span></div>
+                </div>
+            );
+        };
+
+        const LandingPage = ({ setActiveTab }) => {
+            const contactInfo = [
+                { title: "報警", number: "110", icon: "alert-circle" },
+                { title: "救護車", number: "119", icon: "heart" },
+                { title: "駐日代表處", number: "+81-3-3280-7811", icon: "phone" },
+                { title: "橫濱住宿", number: "+81-45-650-4711", desc: "Comfort Hotel" },
+                { title: "河口湖住宿", number: "+81-555-20-9000", desc: "Hotel Regina" },
+            ];
+            
+            return (
+                <div className="animate-fade-in pt-16">
+                    <div className="relative h-[85vh] w-full overflow-hidden">
+                        {/* 修正：使用靜態且絕對可靠的維基百科連結，確保顯示「鑽石逆富士」 */}
+                        <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg/1280px-Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg" 
+                            alt="Diamond Inverse Fuji" 
+                            className="w-full h-full object-cover filter brightness-75" 
+                            onError={(e) => {
+                                // Fallback image just in case
+                                e.target.src = "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?q=80&w=2000&auto=format&fit=crop"; 
+                            }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 via-purple-900/20 to-transparent flex flex-col justify-center items-center text-white text-center px-4">
+                            <Countdown />
+                            <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4 uppercase tracking-widest shadow-lg shadow-purple-500/50">2026.02.13 - 02.18</div>
+                            <h1 className="text-4xl md:text-7xl font-bold mb-4 drop-shadow-xl font-serif">家族<span className="text-purple-400">富士新春旅</span></h1>
+                            <div className="max-w-lg bg-black/40 backdrop-blur-sm p-6 rounded-2xl border border-white/10 mb-8">
+                                <h3 className="text-purple-300 font-bold mb-2 flex items-center justify-center gap-2">
+                                    <div className="w-5 h-5 rounded-full overflow-hidden bg-white">
+                                        <img src="image_5094c3.png" alt="Kuromi" className="w-full h-full object-cover" />
+                                    </div>
+                                    庫洛米的旅行宣言
+                                </h3>
+                                <p className="text-gray-100 italic">「哼！這次的新年旅行，我們要玩得比誰都酷！富士山絕景、粉紅櫻花、還有除夕大餐，全部都要拿下！」</p>
+                            </div>
+                            <button onClick={() => setActiveTab('itinerary')} className="px-8 py-4 bg-white text-purple-900 rounded-full font-bold hover:bg-purple-50 transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center gap-2">查看詳細行程 <Icon name="calendar" size={18} /></button>
+                        </div>
+                    </div>
+                    <div className="bg-gray-900 text-white py-12 px-4">
+                        <div className="max-w-4xl mx-auto">
+                            <h3 className="text-xl font-bold mb-6 text-center text-purple-300">緊急聯絡 & 住宿資訊</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {contactInfo.map((info, idx) => (
+                                    <div key={idx} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-start gap-3">
+                                        <div className="mt-1 text-purple-400"><Icon name={info.icon || "home"} size={16}/></div>
+                                        <div>
+                                            <div className="font-bold text-sm text-gray-300">{info.title}</div>
+                                            <div className="font-mono text-lg font-bold text-white select-all">{info.number}</div>
+                                            {info.desc && <div className="text-xs text-gray-500">{info.desc}</div>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Itinerary = ({ itineraryData, updateItinerary, isFirebaseEnabled, error, isOffline }) => {
+            const [activeDay, setActiveDay] = useState(1);
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState([]);
+            
+            const currentItinerary = itineraryData.find(d => d.day === activeDay);
+            
+            useEffect(() => {
+                if (isEditing) {
+                    setEditData(JSON.parse(JSON.stringify(itineraryData)));
+                }
+            }, [isEditing]);
+
+            const handleEventChange = (dayIndex, eventIndex, field, value) => {
+                const newData = [...editData];
+                newData[dayIndex].events[eventIndex][field] = value;
+                setEditData(newData);
+            };
+
+            const addEvent = (dayIndex) => {
+                const newData = [...editData];
+                newData[dayIndex].events.push({ time: "12:00", activity: "新活動", location: "地點", type: "activity" });
+                setEditData(newData);
+            };
+
+            const removeEvent = (dayIndex, eventIndex) => {
+                if(!confirm('確定刪除此活動?')) return;
+                const newData = [...editData];
+                newData[dayIndex].events.splice(eventIndex, 1);
+                setEditData(newData);
+            };
+
+            const handleSave = async () => {
+                await updateItinerary(editData);
+                setIsEditing(false);
+            };
+
+            return (
+                <div className="pt-20 pb-20 max-w-3xl mx-auto px-4 animate-fade-in relative">
+                    <div className="flex justify-between items-end mb-6">
+                        <div><h2 className="text-2xl font-bold text-purple-900">詳細行程表</h2><p className="text-gray-500 text-sm">跟著庫洛米一起玩翻日本！</p></div>
+                        <div className="flex items-center gap-2">
+                            {isEditing ? (
+                                <>
+                                    <button onClick={() => setIsEditing(false)} className="px-3 py-1 bg-gray-200 rounded-lg text-sm">取消</button>
+                                    <button onClick={handleSave} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-sm">儲存</button>
+                                </>
+                            ) : (
+                                <button onClick={() => setIsEditing(true)} className="text-purple-600 bg-purple-50 p-2 rounded-full hover:bg-purple-100" title="編輯行程">
+                                    <Icon name="edit" size={18} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                        {itineraryData.map((item) => (
+                            <button key={item.day} onClick={() => setActiveDay(item.day)} className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all min-w-[100px] text-left ${activeDay === item.day ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200 transform scale-105' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`}>
+                                <div className={`text-xs ${activeDay === item.day ? 'text-purple-200' : 'text-gray-400'}`}>Day {item.day}</div>
+                                <div className="font-bold text-sm">{item.date.split(' ')[0]}</div>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="bg-white rounded-3xl shadow-xl shadow-purple-100 border border-purple-50 overflow-hidden min-h-[500px]">
+                        <div className="bg-purple-600 px-6 py-5 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10"><Icon name="skull" size={100} className="text-white" /></div>
+                            <h3 className="font-bold text-white text-xl relative z-10">{currentItinerary.title}</h3>
+                            <div className="text-purple-200 text-sm mt-1 relative z-10 flex items-center gap-2"><Icon name="calendar" size={14} /> {currentItinerary.date}</div>
+                        </div>
+                        
+                        {currentItinerary.note && <div className="bg-pink-100 text-pink-700 px-6 py-3 text-sm font-bold flex items-center gap-2"><Icon name="alert-circle" size={16} /> {currentItinerary.note}</div>}
+                        
+                        <div className="p-6">
+                            {(isEditing ? editData.find(d => d.day === activeDay).events : currentItinerary.events).map((event, index) => (
+                                <div key={index} className="relative pl-8 pb-8 last:pb-0 group">
+                                    {!isEditing && index !== currentItinerary.events.length - 1 && <div className="absolute left-[11px] top-3 bottom-0 w-0.5 bg-gray-100 group-hover:bg-purple-200 transition-colors"></div>}
+                                    
+                                    <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center z-10 ${event.type === 'decision' ? 'bg-pink-500 text-white' : 'bg-purple-100 text-purple-600'}`}>
+                                        <Icon name={event.type === 'plane' ? 'plane' : event.type === 'food' ? 'utensils' : 'clock'} size={12} />
+                                    </div>
+
+                                    {isEditing ? (
+                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                                <input className="p-1 border rounded text-sm" value={event.time} onChange={(e) => handleEventChange(activeDay-1, index, 'time', e.target.value)} placeholder="時間" />
+                                                <select className="p-1 border rounded text-sm" value={event.type} onChange={(e) => handleEventChange(activeDay-1, index, 'type', e.target.value)}>
+                                                    <option value="transport">交通</option>
+                                                    <option value="plane">飛機</option>
+                                                    <option value="food">餐飲</option>
+                                                    <option value="stay">住宿</option>
+                                                    <option value="activity">活動</option>
+                                                    <option value="shopping">購物</option>
+                                                </select>
+                                            </div>
+                                            <input className="w-full p-1 border rounded text-sm mb-2 font-bold" value={event.activity} onChange={(e) => handleEventChange(activeDay-1, index, 'activity', e.target.value)} placeholder="活動名稱" />
+                                            <div className="flex gap-2">
+                                                <input className="flex-1 p-1 border rounded text-sm" value={event.location} onChange={(e) => handleEventChange(activeDay-1, index, 'location', e.target.value)} placeholder="地點" />
+                                                <button onClick={() => removeEvent(activeDay-1, index)} className="text-red-500 p-1"><Icon name="trash-2" size={16} /></button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div>
+                                                <div className={`font-bold text-lg ${event.type === 'decision' ? 'text-pink-600' : 'text-gray-800'}`}>{event.activity}</div>
+                                                {event.location && <div className="flex items-center gap-1 text-gray-500 text-sm mt-1"><Icon name="map-pin" size={14} /> {event.location}</div>}
+                                            </div>
+                                            <div className="flex items-center gap-1 text-purple-600 font-mono font-medium text-sm bg-purple-50 px-3 py-1 rounded-full self-start sm:self-center"><Icon name="clock" size={14} /> {event.time}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            
+                            {isEditing && (
+                                <button onClick={() => addEvent(activeDay-1)} className="mt-4 w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-purple-500 hover:text-purple-600 transition-colors flex items-center justify-center gap-2">
+                                    <Icon name="plus" size={16} /> 新增活動
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Gallery = () => {
+            const [photos, setPhotos] = useState(() => {
+                const saved = localStorage.getItem('trip_photos');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, url: "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "媽媽" },
+                    { id: 2, url: "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "姊姊" }
+                ];
+            });
+            const [uploading, setUploading] = useState(false);
+
+            useEffect(() => {
+                localStorage.setItem('trip_photos', JSON.stringify(photos));
+            }, [photos]);
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setUploading(true);
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const newPhoto = { id: Date.now(), url: reader.result, enhanced: false, uploader: '我' };
+                        setPhotos([newPhoto, ...photos]);
+                        setUploading(false);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const toggleEnhance = (id) => {
+                setPhotos(photos.map(p => p.id === id ? { ...p, enhanced: !p.enhanced } : p));
+            };
+
+            const deletePhoto = (id) => {
+                if(confirm("確定要刪除這張照片嗎？")) {
+                     setPhotos(photos.filter(p => p.id !== id));
+                }
+            };
+
+            return (
+                <div className="pt-20 pb-20 max-w-4xl mx-auto px-4 animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div><h2 className="text-2xl font-bold text-purple-900">影像紀錄</h2><p className="text-gray-500 text-sm">大家的精采回憶 (資料會存在這個裝置上)</p></div>
+                        <label className="bg-purple-600 text-white px-5 py-2.5 rounded-full font-medium cursor-pointer hover:bg-purple-700 transition-colors shadow-lg flex items-center gap-2 active:scale-95 transform">
+                            <Icon name="plus" size={18} /> 上傳照片
+                            <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                        </label>
+                    </div>
+                    {uploading && <div className="mb-6 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-3 animate-pulse"><Icon name="camera" className="animate-spin text-purple-500" size={32} /> <span className="text-purple-600 font-medium">庫洛米正在施法美化照片...</span></div>}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        {photos.map((photo) => (
+                            <div key={photo.id} className="relative group rounded-2xl overflow-hidden bg-gray-100 shadow-md aspect-square">
+                                <img src={photo.url} alt="Memory" className={`w-full h-full object-cover transition-all duration-700 ${photo.enhanced ? 'filter contrast-125 brightness-110 saturate-125' : ''}`} />
+                                {photo.enhanced && <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg z-10 flex items-center gap-1"><Icon name="wand-2" size={10} /> MAGIC</div>}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                                    <div className="text-white text-xs mb-3 opacity-90 flex items-center gap-2"><div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center text-[10px]">{photo.uploader[0]}</div>{photo.uploader} 上傳</div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => toggleEnhance(photo.id)} className={`flex-1 py-2 rounded-lg text-sm font-bold backdrop-blur-sm transition-colors flex items-center justify-center gap-2 ${photo.enhanced ? 'bg-pink-500/90 text-white' : 'bg-white/90 text-gray-800'}`}><Icon name="wand-2" size={14} /> {photo.enhanced ? '還原' : 'AI 美化'}</button>
+                                        <button onClick={() => deletePhoto(photo.id)} className="p-2 bg-red-500/80 text-white rounded-lg hover:bg-red-600 backdrop-blur-sm transition-colors"><Icon name="trash-2" size={18} /></button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const Expenses = () => {
+            const expenseCategories = [
+                { id: 'transport', name: '交通', icon: 'plane', color: 'bg-blue-100 text-blue-600' },
+                { id: 'stay', name: '住宿', icon: 'bed', color: 'bg-purple-100 text-purple-600' },
+                { id: 'food', name: '餐點', icon: 'utensils', color: 'bg-pink-100 text-pink-600' },
+                { id: 'ticket', name: '門票', icon: 'ticket', color: 'bg-yellow-100 text-yellow-600' },
+                { id: 'shopping', name: '購物', icon: 'wallet', color: 'bg-green-100 text-green-600' },
+            ];
+            
+            // 使用 LocalStorage
+            const [expenses, setExpenses] = useState(() => {
+                const saved = localStorage.getItem('trip_expenses');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, item: '六歌仙除夕晚餐訂金', cost: 18000, category: 'food', payer: '爸爸' },
+                    { id: 2, item: 'N\'EX 車票 (9人)', cost: 27000, category: 'transport', payer: '媽媽' }
+                ];
+            });
+            const [newItem, setNewItem] = useState({ item: '', cost: '', category: 'food', payer: '' });
+            const [showForm, setShowForm] = useState(false);
+
+            useEffect(() => {
+                localStorage.setItem('trip_expenses', JSON.stringify(expenses));
+            }, [expenses]);
+
+            const totalCost = expenses.reduce((sum, ex) => sum + Number(ex.cost), 0);
+            const avgCost = Math.round(totalCost / 9);
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!newItem.item || !newItem.cost) return;
+                setExpenses([...expenses, { ...newItem, id: Date.now(), cost: Number(newItem.cost) }]);
+                setNewItem({ item: '', cost: '', category: 'food', payer: '' });
+                setShowForm(false);
+            };
+
+            const categorySummary = expenseCategories.map(cat => {
+                const sum = expenses.filter(e => e.category === cat.id).reduce((acc, curr) => acc + curr.cost, 0);
+                return { ...cat, sum, percent: totalCost ? (sum / totalCost) * 100 : 0 };
+            }).filter(c => c.sum > 0);
+
+            return (
+                <div className="pt-20 pb-20 max-w-2xl mx-auto px-4 animate-fade-in">
+                    <div className="bg-gradient-to-br from-purple-800 to-indigo-900 rounded-3xl p-6 text-white shadow-xl shadow-purple-200 mb-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 transform rotate-12"><Icon name="wallet" size={120} /></div>
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-6">
+                                <div><p className="text-purple-200 text-sm mb-1 font-medium">總公費支出 (JPY)</p><h2 className="text-4xl font-bold font-mono">¥ {totalCost.toLocaleString()}</h2></div>
+                                <div className="text-right"><p className="text-purple-200 text-sm mb-1 font-medium">每人平均 (9人)</p><h3 className="text-xl font-bold font-mono">¥ {avgCost.toLocaleString()}</h3></div>
+                            </div>
+                            <div className="flex h-4 rounded-full overflow-hidden bg-black/20 backdrop-blur-sm">
+                                {categorySummary.map((cat, idx) => (
+                                    <div key={idx} style={{ width: `${cat.percent}%` }} className={`h-full ${cat.color.split(' ')[0].replace('100', '400')}`}></div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Icon name="wallet" size={18} className="text-purple-600" /> 支出明細</h3>
+                        <button onClick={() => setShowForm(!showForm)} className="bg-purple-600 text-white font-medium text-sm flex items-center gap-2 px-4 py-2 rounded-full shadow-md hover:bg-purple-700 transition-all active:scale-95">{showForm ? '取消' : <><Icon name="plus" size={16} /> 新增支出</>}</button>
+                    </div>
+                    {showForm && (
+                        <form onSubmit={handleAdd} className="bg-white p-6 rounded-2xl shadow-lg border border-purple-100 mb-6 animate-slide-down">
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="col-span-2"><label className="text-xs text-gray-500 font-bold ml-1 mb-1 block">項目名稱</label><input type="text" placeholder="例如：便利商店零食" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={newItem.item} onChange={(e) => setNewItem({...newItem, item: e.target.value})} required /></div>
+                                <div><label className="text-xs text-gray-500 font-bold ml-1 mb-1 block">金額 (JPY)</label><input type="number" placeholder="0" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={newItem.cost} onChange={(e) => setNewItem({...newItem, cost: e.target.value})} required /></div>
+                                <div><label className="text-xs text-gray-500 font-bold ml-1 mb-1 block">分類</label><select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={newItem.category} onChange={(e) => setNewItem({...newItem, category: e.target.value})}>{expenseCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                                <div className="col-span-2"><label className="text-xs text-gray-500 font-bold ml-1 mb-1 block">付款人</label><input type="text" placeholder="誰先墊錢的？" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" value={newItem.payer} onChange={(e) => setNewItem({...newItem, payer: e.target.value})} /></div>
+                            </div>
+                            <button type="submit" className="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-lg">加入清單</button>
+                        </form>
+                    )}
+                    <div className="space-y-3">
+                        {expenses.map((expense) => (
+                            <div key={expense.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-purple-200 transition-all">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${expenseCategories.find(c => c.id === expense.category)?.color}`}>{<Icon name={expenseCategories.find(c => c.id === expense.category)?.icon} size={20} />}</div>
+                                    <div><div className="font-bold text-gray-800">{expense.item}</div><div className="text-xs text-gray-400 mt-0.5">{expenseCategories.find(c => c.id === expense.category)?.name} • <span className="text-purple-600 font-medium">{expense.payer || '未知'}</span> 先付</div></div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="font-bold font-mono text-gray-700 text-lg">¥ {expense.cost.toLocaleString()}</div>
+                                    <button onClick={() => setExpenses(expenses.filter(e => e.id !== expense.id))} className="text-gray-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"><Icon name="trash-2" size={18} /></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('home');
+            const { itinerary, updateItinerary, isFirebaseEnabled, error } = useFirebaseItinerary();
+
+            useEffect(() => { lucide.createIcons(); }, []);
+            
+            return (
+                <div className="min-h-screen pb-10">
+                    <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+                    
+                    {/* Global Error Banner displayed on top of any page */}
+                    <GlobalErrorBanner error={error} />
+
+                    <main>
+                        {activeTab === 'home' && <LandingPage setActiveTab={setActiveTab} />}
+                        {activeTab === 'itinerary' && <Itinerary itineraryData={itinerary} updateItinerary={updateItinerary} isFirebaseEnabled={isFirebaseEnabled} />} 
+                        {activeTab === 'gallery' && <Gallery />}
+                        {activeTab === 'expenses' && <Expenses />}
+                    </main>
+                    <footer className="text-center py-8 text-purple-300/60 text-xs">
+                        <p>© 2026 Kuromi Family Trip. Designed for Memories.</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
