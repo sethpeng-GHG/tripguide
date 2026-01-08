@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026家族富士新春旅 - Kuromi Family Trip</title>
     
-    <!-- 1. Tailwind CSS (介面樣式) -->
+    <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -17,17 +17,11 @@
                     },
                     animation: {
                         'fade-in': 'fadeIn 0.5s ease-out forwards',
-                        'slide-down': 'slideDown 0.3s ease-out forwards',
-                        'bounce-slow': 'bounce 2s infinite',
                     },
                     keyframes: {
                         fadeIn: {
                             '0%': { opacity: '0', transform: 'translateY(10px)' },
                             '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
-                        slideDown: {
-                            '0%': { opacity: '0', height: '0', transform: 'translateY(-10px)' },
-                            '100%': { opacity: '1', height: 'auto', transform: 'translateY(0)' },
                         }
                     }
                 }
@@ -35,14 +29,14 @@
         }
     </script>
 
-    <!-- 2. React & Babel (核心程式庫) -->
+    <!-- 2. React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons (圖示) -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- 3. Firebase SDK (傳統相容模式，確保本地檔案可直接執行) -->
+    <!-- 3. Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -61,9 +55,9 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- Firebase 設定 (依照您的指示填入) ---
+        // --- Firebase 設定 ---
         const getFirebaseConfig = () => {
-            const firebaseConfig = {
+            return {
               apiKey: "AIzaSyAhf5n5Dl_LVz9alr0okfPkuounxrmJEN8",
               authDomain: "kuromi-2026-trip.firebaseapp.com",
               projectId: "kuromi-2026-trip",
@@ -71,10 +65,49 @@
               messagingSenderId: "1008106116830",
               appId: "1:1008106116830:web:637ece413b2ad21c20144f"
             };
-            return firebaseConfig;
         };
 
-        // --- 預設行程資料 (離線備案) ---
+        // --- 修正後的安全 Icon 元件 (v19) ---
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const containerRef = useRef(null);
+
+            useEffect(() => {
+                if (!containerRef.current || !window.lucide) return;
+
+                // 1. 清空容器，確保沒有舊的元素殘留
+                containerRef.current.innerHTML = '';
+
+                // 2. 建立一個臨時的 i 標籤，讓 Lucide 去轉換它
+                const i = document.createElement('i');
+                i.setAttribute('data-lucide', name);
+                i.setAttribute('width', size);
+                i.setAttribute('height', size);
+                
+                // 如果有 class，加上去
+                if (className) {
+                    i.setAttribute('class', className);
+                }
+
+                // 3. 將 i 標籤放入我們 React 管理的 span 容器中
+                containerRef.current.appendChild(i);
+
+                // 4. 呼叫 Lucide 只針對這個容器進行轉換 (這樣就不會影響其他 React 元素)
+                window.lucide.createIcons({
+                    root: containerRef.current,
+                    nameAttr: 'data-lucide',
+                    attrs: {
+                        width: size,
+                        height: size,
+                        class: className
+                    }
+                });
+            }, [name, size, className]);
+
+            // React 只負責渲染這個 span，裡面的內容由 useEffect 管理，不會衝突
+            return <span ref={containerRef} style={{ display: 'inline-flex', verticalAlign: 'middle', lineHeight: 0 }}></span>;
+        };
+
+        // --- 預設行程資料 ---
         const TRIP_START_DATE = new Date("2026-02-13T00:00:00");
         const INITIAL_ITINERARY = [
             {
@@ -151,12 +184,6 @@
                 ]
             }
         ];
-        
-        // 圖示元件
-        const Icon = ({ name, size = 20, className = "" }) => {
-            useEffect(() => { if(window.lucide) window.lucide.createIcons(); });
-            return <i data-lucide={name} width={size} height={size} className={className}></i>;
-        };
 
         // --- 全域錯誤提示元件 ---
         const GlobalErrorBanner = ({ error, isOffline }) => {
@@ -181,7 +208,7 @@
             );
         };
 
-        // --- Firebase Hook (核心邏輯) ---
+        // --- Firebase Hook ---
         const useFirebaseItinerary = () => {
             const [data, setData] = useState(INITIAL_ITINERARY);
             const [loading, setLoading] = useState(true);
@@ -192,7 +219,6 @@
             useEffect(() => {
                 const initFirebase = async () => {
                     try {
-                        // 1. 初始化 Firebase
                         if (!firebase.apps.length) {
                             firebase.initializeApp(getFirebaseConfig());
                         }
@@ -201,20 +227,17 @@
                         const firestore = firebase.firestore();
                         setDb(firestore);
 
-                        // 2. 嘗試匿名登入 (包在 try-catch 中，如果本地檔案執行失敗則切換離線)
                         try {
                             await auth.signInAnonymously();
                         } catch (authErr) {
-                            console.warn("Auth failed (likely file:// protocol), switching to offline mode:", authErr);
+                            console.warn("Auth failed, switching to offline mode:", authErr);
                             setIsOffline(true);
                             setLoading(false);
                             return;
                         }
 
-                        // 3. 監聽登入狀態與資料
                         auth.onAuthStateChanged((user) => {
                             if (user) {
-                                // 路徑：artifacts/{projectId}/public/data/itinerary/main
                                 const appId = "trip-itinerary-ce0c8"; 
                                 const docRef = firestore.collection('artifacts').doc(appId)
                                                         .collection('public').doc('data')
@@ -224,16 +247,19 @@
                                     setError(null);
                                     if (snapshot.exists) {
                                         console.log("Loaded data from Firestore");
-                                        setData(snapshot.data().days);
+                                        const fetchedData = snapshot.data().days;
+                                        if (Array.isArray(fetchedData)) {
+                                            setData(fetchedData);
+                                        } else {
+                                            setData(INITIAL_ITINERARY);
+                                        }
                                     } else {
-                                        // 第一次執行，寫入預設資料
                                         console.log("Seeding initial data...");
                                         try {
                                             await docRef.set({ days: INITIAL_ITINERARY });
                                             setData(INITIAL_ITINERARY);
                                         } catch (seedErr) {
                                             console.error("Seeding error:", seedErr);
-                                            // 如果寫入失敗(通常是權限)，還是顯示預設資料，但跳錯
                                             setError(seedErr);
                                             setIsOffline(true); 
                                         }
@@ -242,7 +268,7 @@
                                 }, (err) => {
                                     console.error("Snapshot error:", err);
                                     setError(err);
-                                    setIsOffline(true); // 讀取失敗也切換離線
+                                    setIsOffline(true);
                                     setLoading(false);
                                 });
                             }
@@ -259,7 +285,6 @@
             }, []);
 
             const updateItinerary = async (newItinerary) => {
-                // 如果是離線模式或沒有資料庫連線，只更新本地畫面
                 if (isOffline || !db) {
                     setData(newItinerary); 
                     alert("目前為離線模式，變更僅暫時儲存於此頁面，重新整理後將消失。");
@@ -303,18 +328,14 @@
                                         src="image_5094c3.png" 
                                         alt="Kuromi" 
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                            e.target.style.display = 'none';
-                                            e.target.parentNode.innerHTML = '<i data-lucide="cat" width="20" height="20" class="text-purple-600"></i>';
-                                            if(window.lucide) window.lucide.createIcons();
-                                        }}
+                                        onError={(e) => e.target.src = 'https://upload.wikimedia.org/wikipedia/en/thumb/5/52/Kuromi_Sanrio_Character.png/220px-Kuromi_Sanrio_Character.png'}
                                     />
                                 </div>
                                 <span>家族富士新春旅</span>
                             </div>
                             <div className="md:hidden">
                                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-purple-800">
-                                    <Icon name={isMenuOpen ? "x" : "menu"} size={24} />
+                                    <Icon name="menu" size={24} />
                                 </button>
                             </div>
                             <div className="hidden md:flex gap-6">
@@ -380,7 +401,6 @@
             return (
                 <div className="animate-fade-in pt-16">
                     <div className="relative h-[85vh] w-full overflow-hidden">
-                        {/* 修正：使用靜態且絕對可靠的維基百科連結，確保顯示「鑽石逆富士」 */}
                         <img 
                             src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg/1280px-Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg" 
                             alt="Diamond Inverse Fuji" 
@@ -397,7 +417,7 @@
                             <div className="max-w-lg bg-black/40 backdrop-blur-sm p-6 rounded-2xl border border-white/10 mb-8">
                                 <h3 className="text-purple-300 font-bold mb-2 flex items-center justify-center gap-2">
                                     <div className="w-5 h-5 rounded-full overflow-hidden bg-white">
-                                        <img src="image_5094c3.png" alt="Kuromi" className="w-full h-full object-cover" />
+                                        <img src="image_5094c3.png" alt="Kuromi" className="w-full h-full object-cover" onError={(e) => e.target.src = 'https://upload.wikimedia.org/wikipedia/en/thumb/5/52/Kuromi_Sanrio_Character.png/220px-Kuromi_Sanrio_Character.png'}/>
                                     </div>
                                     庫洛米的旅行宣言
                                 </h3>
@@ -432,37 +452,46 @@
             const [isEditing, setIsEditing] = useState(false);
             const [editData, setEditData] = useState([]);
             
-            const currentItinerary = itineraryData.find(d => d.day === activeDay);
-            
-            useEffect(() => {
-                if (isEditing) {
-                    setEditData(JSON.parse(JSON.stringify(itineraryData)));
-                }
-            }, [isEditing]);
+            const safeItineraryData = (Array.isArray(itineraryData) && itineraryData.length > 0) ? itineraryData : INITIAL_ITINERARY;
+            const currentItinerary = safeItineraryData.find(d => d.day === activeDay) || safeItineraryData[0];
+            const currentEditDay = isEditing ? (editData.find(d => d.day === activeDay) || editData[0]) : null;
 
             const handleEventChange = (dayIndex, eventIndex, field, value) => {
-                const newData = [...editData];
-                newData[dayIndex].events[eventIndex][field] = value;
-                setEditData(newData);
+                const newData = JSON.parse(JSON.stringify(editData));
+                if (newData[dayIndex] && newData[dayIndex].events[eventIndex]) {
+                    newData[dayIndex].events[eventIndex][field] = value;
+                    setEditData(newData);
+                }
             };
 
             const addEvent = (dayIndex) => {
-                const newData = [...editData];
-                newData[dayIndex].events.push({ time: "12:00", activity: "新活動", location: "地點", type: "activity" });
-                setEditData(newData);
+                const newData = JSON.parse(JSON.stringify(editData));
+                if (newData[dayIndex]) {
+                    newData[dayIndex].events.push({ time: "12:00", activity: "新活動", location: "地點", type: "activity" });
+                    setEditData(newData);
+                }
             };
 
             const removeEvent = (dayIndex, eventIndex) => {
                 if(!confirm('確定刪除此活動?')) return;
-                const newData = [...editData];
-                newData[dayIndex].events.splice(eventIndex, 1);
-                setEditData(newData);
+                const newData = JSON.parse(JSON.stringify(editData));
+                if (newData[dayIndex] && newData[dayIndex].events) {
+                    newData[dayIndex].events.splice(eventIndex, 1);
+                    setEditData(newData);
+                }
             };
 
             const handleSave = async () => {
                 await updateItinerary(editData);
                 setIsEditing(false);
             };
+            
+            const handleEditClick = () => {
+                setEditData(JSON.parse(JSON.stringify(safeItineraryData)));
+                setIsEditing(true);
+            };
+
+            if (!currentItinerary) return <div className="text-center p-10">資料載入中...</div>;
 
             return (
                 <div className="pt-20 pb-20 max-w-3xl mx-auto px-4 animate-fade-in relative">
@@ -475,7 +504,7 @@
                                     <button onClick={handleSave} className="px-3 py-1 bg-purple-600 text-white rounded-lg text-sm">儲存</button>
                                 </>
                             ) : (
-                                <button onClick={() => setIsEditing(true)} className="text-purple-600 bg-purple-50 p-2 rounded-full hover:bg-purple-100" title="編輯行程">
+                                <button onClick={handleEditClick} className="text-purple-600 bg-purple-50 p-2 rounded-full hover:bg-purple-100" title="編輯行程">
                                     <Icon name="edit" size={18} />
                                 </button>
                             )}
@@ -483,7 +512,7 @@
                     </div>
 
                     <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                        {itineraryData.map((item) => (
+                        {safeItineraryData.map((item) => (
                             <button key={item.day} onClick={() => setActiveDay(item.day)} className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all min-w-[100px] text-left ${activeDay === item.day ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200 transform scale-105' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`}>
                                 <div className={`text-xs ${activeDay === item.day ? 'text-purple-200' : 'text-gray-400'}`}>Day {item.day}</div>
                                 <div className="font-bold text-sm">{item.date.split(' ')[0]}</div>
@@ -501,7 +530,7 @@
                         {currentItinerary.note && <div className="bg-pink-100 text-pink-700 px-6 py-3 text-sm font-bold flex items-center gap-2"><Icon name="alert-circle" size={16} /> {currentItinerary.note}</div>}
                         
                         <div className="p-6">
-                            {(isEditing ? editData.find(d => d.day === activeDay).events : currentItinerary.events).map((event, index) => (
+                            {(isEditing && currentEditDay ? currentEditDay.events : currentItinerary.events).map((event, index) => (
                                 <div key={index} className="relative pl-8 pb-8 last:pb-0 group">
                                     {!isEditing && index !== currentItinerary.events.length - 1 && <div className="absolute left-[11px] top-3 bottom-0 w-0.5 bg-gray-100 group-hover:bg-purple-200 transition-colors"></div>}
                                     
@@ -711,7 +740,8 @@
             const [activeTab, setActiveTab] = useState('home');
             const { itinerary, updateItinerary, isFirebaseEnabled, error } = useFirebaseItinerary();
 
-            useEffect(() => { lucide.createIcons(); }, []);
+            // v19: 移除所有全域 createIcons 呼叫，避免 DOM 衝突
+            // Icon 元件現在是自給自足的
             
             return (
                 <div className="min-h-screen pb-10">
