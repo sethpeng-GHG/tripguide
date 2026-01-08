@@ -53,7 +53,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useCallback } = React;
 
         // --- Firebase 設定 ---
         const getFirebaseConfig = () => {
@@ -67,122 +67,95 @@
             };
         };
 
-        // --- 修正後的安全 Icon 元件 (v19) ---
+        // --- 安全的 Icon 元件 ---
         const Icon = ({ name, size = 20, className = "" }) => {
             const containerRef = useRef(null);
-
             useEffect(() => {
                 if (!containerRef.current || !window.lucide) return;
-
-                // 1. 清空容器，確保沒有舊的元素殘留
                 containerRef.current.innerHTML = '';
-
-                // 2. 建立一個臨時的 i 標籤，讓 Lucide 去轉換它
                 const i = document.createElement('i');
                 i.setAttribute('data-lucide', name);
                 i.setAttribute('width', size);
                 i.setAttribute('height', size);
-                
-                // 如果有 class，加上去
-                if (className) {
-                    i.setAttribute('class', className);
-                }
-
-                // 3. 將 i 標籤放入我們 React 管理的 span 容器中
+                if (className) i.setAttribute('class', className);
                 containerRef.current.appendChild(i);
-
-                // 4. 呼叫 Lucide 只針對這個容器進行轉換 (這樣就不會影響其他 React 元素)
                 window.lucide.createIcons({
                     root: containerRef.current,
                     nameAttr: 'data-lucide',
-                    attrs: {
-                        width: size,
-                        height: size,
-                        class: className
-                    }
+                    attrs: { width: size, height: size, class: className }
                 });
             }, [name, size, className]);
-
-            // React 只負責渲染這個 span，裡面的內容由 useEffect 管理，不會衝突
             return <span ref={containerRef} style={{ display: 'inline-flex', verticalAlign: 'middle', lineHeight: 0 }}></span>;
         };
 
-        // --- 預設行程資料 ---
+        // --- 預設資料 ---
         const TRIP_START_DATE = new Date("2026-02-13T00:00:00");
+        
         const INITIAL_ITINERARY = [
             {
                 day: 1, date: "2026/02/13 (五)", title: "啟程：從台中到橫濱港", stay: "Comfort Hotel Yokohama Kannai",
                 events: [
-                    { time: "07:30", activity: "台中高鐵站集合 (早餐車上吃)", location: "台中高鐵", type: "transport" },
-                    { time: "07:53", activity: "搭乘高鐵 1302 車次前往桃園", location: "往桃園", type: "transport" },
+                    { time: "07:30", activity: "台中高鐵站集合", location: "台中高鐵", type: "transport" },
                     { time: "12:35", activity: "華航 CI104 起飛", location: "桃園機場 (TPE)", type: "plane" },
-                    { time: "16:35", activity: "抵達東京成田機場 (NRT)", location: "成田機場", type: "plane" },
-                    { time: "18:19", activity: "搭乘 N'EX 42號 前往橫濱", location: "JR 成田空港站", type: "transport" },
-                    { time: "19:43", activity: "抵達 JR 橫濱站，轉乘根岸線至關內站", location: "橫濱", type: "transport" },
+                    { time: "16:35", activity: "抵達東京成田機場", location: "成田機場", type: "plane" },
+                    { time: "18:19", activity: "搭乘 N'EX 42號", location: "JR 成田空港站", type: "transport" },
                     { time: "20:30", activity: "晚餐：橫濱中華街", location: "中華街", type: "food" },
                 ]
             },
             {
-                day: 2, date: "2026/02/14 (六)", title: "抉擇：粉紅櫻花 vs 古都鎌倉", stay: "Hotel Regina Kawaguchiko (溫泉!)",
+                day: 2, date: "2026/02/14 (六)", title: "抉擇：粉紅櫻花 vs 古都鎌倉", stay: "Hotel Regina Kawaguchiko",
                 note: "命運的抉擇點！看花況決定去哪邊！",
                 events: [
-                    { time: "08:30", activity: "飯店集合出發 (包車開始)", location: "橫濱", type: "transport" },
+                    { time: "08:30", activity: "飯店集合出發", location: "橫濱", type: "transport" },
                     { time: "09:00", activity: "【命運抉擇點】Plan A 或 Plan B", location: "決策時刻", type: "decision" },
                     { time: "17:30", activity: "抵達河口湖飯店 Check-in", location: "河口湖", type: "stay" },
                     { time: "18:30", activity: "飯店懷石料理晚餐", location: "飯店餐廳", type: "food" },
-                ],
-                plans: {
-                    A: { title: "Plan A: 伊豆河津櫻版", desc: "花開了就去這！粉紅色的世界。", points: ["河津櫻花祭 (賞花)", "午餐吃屋台", "經天城越往河口湖 (車程較久)"] },
-                    B: { title: "Plan B: 鎌倉古都版", desc: "想輕鬆就去這！看大佛與海。", points: ["鶴岡八幡宮 & 小町通", "鎌倉大佛 & 江之島", "看海邊風景"] }
-                }
+                ]
             },
             {
                 day: 3, date: "2026/02/15 (日)", title: "絕景：富士山老大的地盤", stay: "Hotel Regina Kawaguchiko",
                 events: [
-                    { time: "08:30", activity: "飯店出發", location: "河口湖", type: "transport" },
-                    { time: "09:00", activity: "忍野八海 (水超清澈!)", location: "忍野村", type: "activity" },
-                    { time: "10:30", activity: "北口本宮富士淺間神社 (巨大神木)", location: "富士吉田", type: "activity" },
-                    { time: "12:00", activity: "午餐三選一 (不動茶屋/天婦羅/Sylvans)", location: "河口湖周邊", type: "food" },
-                    { time: "13:30", activity: "天上山公園纜車 (看全景)", location: "天上山", type: "activity" },
-                    { time: "15:00", activity: "西湖療癒之里根場 (童話茅草屋)", location: "西湖", type: "activity" },
-                    { time: "17:30", activity: "返回飯店享用高級料理", location: "飯店", type: "food" },
+                    { time: "09:00", activity: "忍野八海", location: "忍野村", type: "activity" },
+                    { time: "10:30", activity: "北口本宮富士淺間神社", location: "富士吉田", type: "activity" },
+                    { time: "13:30", activity: "天上山公園纜車", location: "天上山", type: "activity" },
+                    { time: "15:00", activity: "西湖療癒之里根場", location: "西湖", type: "activity" },
                 ]
             },
             {
-                day: 4, date: "2026/02/16 (一)", title: "圍爐：Outlet 血拼與除夕大餐", stay: "東京大久保秘覓公寓 (SL Building)",
+                day: 4, date: "2026/02/16 (一)", title: "圍爐：Outlet 血拼與除夕大餐", stay: "東京大久保秘覓公寓",
                 events: [
-                    { time: "08:30", activity: "飯店退房 (拜拜富士山)", location: "河口湖", type: "transport" },
-                    { time: "09:00", activity: "山中湖 (餵天鵝)", location: "山中湖", type: "activity" },
-                    { time: "10:30", activity: "御殿場 Outlet (買買買!)", location: "御殿場", type: "shopping" },
-                    { time: "14:00", activity: "準時發車 (絕對不能遲到!)", location: "御殿場", type: "transport" },
-                    { time: "15:00", activity: "海老名服務區 (買哈密瓜麵包)", location: "海老名 SA", type: "food" },
-                    { time: "16:30", activity: "東京公寓 Check-in (準備戰鬥裝)", location: "新大久保", type: "stay" },
-                    { time: "18:30", activity: "除夕圍爐：六歌仙 (和牛帝王蟹吃到飽)", location: "新宿", type: "food" },
+                    { time: "09:00", activity: "山中湖餵天鵝", location: "山中湖", type: "activity" },
+                    { time: "10:30", activity: "御殿場 Outlet", location: "御殿場", type: "shopping" },
+                    { time: "18:30", activity: "除夕圍爐：六歌仙", location: "新宿", type: "food" },
                 ]
             },
             {
-                day: 5, date: "2026/02/17 (二)", title: "都會：東京潮流大冒險", stay: "東京大久保秘覓公寓 (SL Building)",
+                day: 5, date: "2026/02/17 (二)", title: "都會：東京潮流大冒險", stay: "東京大久保秘覓公寓",
                 events: [
-                    { time: "09:30", activity: "悠閒出門 (搭電車)", location: "新大久保站", type: "transport" },
-                    { time: "10:00", activity: "明治神宮 (市中心大森林)", location: "原宿", type: "activity" },
-                    { time: "12:30", activity: "惠比壽花園廣場 (午餐吃洋食)", location: "惠比壽", type: "food" },
-                    { time: "14:30", activity: "自由活動 (涉谷/原宿/新宿)", location: "東京市區", type: "shopping" },
-                    { time: "18:30", activity: "晚餐集合 (炸豬排/藥妝)", location: "新宿", type: "food" },
+                    { time: "10:00", activity: "明治神宮", location: "原宿", type: "activity" },
+                    { time: "12:30", activity: "惠比壽花園廣場", location: "惠比壽", type: "food" },
+                    { time: "14:30", activity: "自由活動", location: "涉谷/原宿/新宿", type: "shopping" },
                 ]
             },
             {
                 day: 6, date: "2026/02/18 (三)", title: "賦歸：美味的鰻魚飯", stay: "溫暖的家",
                 events: [
-                    { time: "08:30", activity: "公寓退房 (專車接送)", location: "新大久保", type: "transport" },
-                    { time: "10:00", activity: "機場寄放行李 (成田 T2)", location: "成田機場", type: "misc" },
-                    { time: "11:00", activity: "成田山新勝寺 (抽川豐號碼牌)", location: "成田山", type: "activity" },
-                    { time: "12:30", activity: "午餐：鰻魚飯 (最後一餐吃好點)", location: "成田參道", type: "food" },
-                    { time: "14:31", activity: "搭 JR 返回機場 (底線 14:46)", location: "往機場", type: "transport" },
-                    { time: "15:00", activity: "領行李/報到 (CI1105)", location: "成田機場 T2", type: "plane" },
+                    { time: "11:00", activity: "成田山新勝寺", location: "成田山", type: "activity" },
+                    { time: "12:30", activity: "午餐：鰻魚飯", location: "成田參道", type: "food" },
+                    { time: "15:00", activity: "領行李/報到 CI1105", location: "成田機場 T2", type: "plane" },
                     { time: "20:35", activity: "抵達桃園機場", location: "桃園", type: "plane" },
-                    { time: "23:21", activity: "高鐵 567 車次回台中", location: "往台中", type: "transport" },
                 ]
             }
+        ];
+
+        const INITIAL_PHOTOS = [
+            { id: 1, url: "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "媽媽" },
+            { id: 2, url: "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "姊姊" }
+        ];
+
+        const INITIAL_EXPENSES = [
+            { id: 1, item: '六歌仙除夕晚餐訂金', cost: 18000, category: 'food', payer: '爸爸' },
+            { id: 2, item: 'N\'EX 車票 (9人)', cost: 27000, category: 'transport', payer: '媽媽' }
         ];
 
         // --- 全域錯誤提示元件 ---
@@ -201,22 +174,24 @@
                     </p>
                     {isOffline && (
                         <p className="text-sm text-gray-700 font-bold bg-gray-100 p-2 rounded">
-                            ✨ 已自動切換至「離線瀏覽模式」，您可以正常查看行程，但無法儲存修改。
+                            ✨ 已自動切換至「離線瀏覽模式」，您可以正常查看資料，但無法同步給其他人。
                         </p>
                     )}
                 </div>
             );
         };
 
-        // --- Firebase Hook ---
-        const useFirebaseItinerary = () => {
-            const [data, setData] = useState(INITIAL_ITINERARY);
+        // --- 通用 Firebase Hook (核心邏輯) ---
+        const useFirebaseData = (collectionName, initialData) => {
+            const [data, setData] = useState(initialData);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
             const [db, setDb] = useState(null);
             const [isOffline, setIsOffline] = useState(false);
+            const mounted = useRef(true);
 
             useEffect(() => {
+                mounted.current = true;
                 const initFirebase = async () => {
                     try {
                         if (!firebase.apps.length) {
@@ -230,34 +205,36 @@
                         try {
                             await auth.signInAnonymously();
                         } catch (authErr) {
-                            console.warn("Auth failed, switching to offline mode:", authErr);
-                            setIsOffline(true);
-                            setLoading(false);
+                            console.warn("Auth failed, offline mode:", authErr);
+                            if(mounted.current) {
+                                setIsOffline(true);
+                                setLoading(false);
+                            }
                             return;
                         }
 
                         auth.onAuthStateChanged((user) => {
-                            if (user) {
+                            if (user && mounted.current) {
+                                // 路徑：artifacts/{projectId}/public/data/{collectionName}/main
                                 const appId = "trip-itinerary-ce0c8"; 
                                 const docRef = firestore.collection('artifacts').doc(appId)
                                                         .collection('public').doc('data')
-                                                        .collection('itinerary').doc('main');
+                                                        .collection(collectionName).doc('main');
                                 
                                 docRef.onSnapshot(async (snapshot) => {
+                                    if(!mounted.current) return;
                                     setError(null);
                                     if (snapshot.exists) {
-                                        console.log("Loaded data from Firestore");
-                                        const fetchedData = snapshot.data().days;
-                                        if (Array.isArray(fetchedData)) {
+                                        console.log(`Loaded ${collectionName} from Firestore`);
+                                        const fetchedData = snapshot.data().content;
+                                        if (fetchedData) {
                                             setData(fetchedData);
-                                        } else {
-                                            setData(INITIAL_ITINERARY);
                                         }
                                     } else {
-                                        console.log("Seeding initial data...");
+                                        console.log(`Seeding ${collectionName}...`);
                                         try {
-                                            await docRef.set({ days: INITIAL_ITINERARY });
-                                            setData(INITIAL_ITINERARY);
+                                            await docRef.set({ content: initialData });
+                                            setData(initialData);
                                         } catch (seedErr) {
                                             console.error("Seeding error:", seedErr);
                                             setError(seedErr);
@@ -266,6 +243,7 @@
                                     }
                                     setLoading(false);
                                 }, (err) => {
+                                    if(!mounted.current) return;
                                     console.error("Snapshot error:", err);
                                     setError(err);
                                     setIsOffline(true);
@@ -274,6 +252,7 @@
                             }
                         });
                     } catch (err) {
+                        if(!mounted.current) return;
                         console.error("Init Error:", err);
                         setError(err);
                         setIsOffline(true);
@@ -282,29 +261,30 @@
                 };
 
                 initFirebase();
-            }, []);
+                return () => { mounted.current = false; };
+            }, [collectionName]);
 
-            const updateItinerary = async (newItinerary) => {
+            const updateData = async (newData) => {
                 if (isOffline || !db) {
-                    setData(newItinerary); 
-                    alert("目前為離線模式，變更僅暫時儲存於此頁面，重新整理後將消失。");
+                    setData(newData); 
+                    alert("目前為離線模式，資料僅暫存於此裝置。");
                     return;
                 }
                 const appId = "trip-itinerary-ce0c8";
                 const docRef = db.collection('artifacts').doc(appId)
                                  .collection('public').doc('data')
-                                 .collection('itinerary').doc('main');
+                                 .collection(collectionName).doc('main');
                 try {
-                    await docRef.set({ days: newItinerary });
+                    await docRef.set({ content: newData });
                     setError(null);
                 } catch (err) {
                     console.error("Update error:", err);
                     setError(err);
-                    alert(`儲存失敗: ${err.message} (請檢查 Firebase Rules)`);
+                    alert(`儲存失敗: ${err.message}`);
                 }
             };
 
-            return { itinerary: data, loading, error, updateItinerary, isFirebaseEnabled: !!db && !isOffline, isOffline };
+            return { data, loading, error, updateData, isFirebaseEnabled: !!db && !isOffline, isOffline };
         };
 
         // --- UI 元件 ---
@@ -366,38 +346,7 @@
             );
         };
 
-        const Countdown = () => {
-            const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0 });
-            useEffect(() => {
-                const calculateTimeLeft = () => {
-                    const difference = +TRIP_START_DATE - +new Date();
-                    return difference > 0 ? {
-                        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-                        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-                    } : { days: 0, hours: 0 };
-                };
-                setTimeLeft(calculateTimeLeft());
-                const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000 * 60 * 60);
-                return () => clearInterval(timer);
-            }, []);
-            return (
-                <div className="inline-flex gap-4 bg-black/60 backdrop-blur-md px-6 py-3 rounded-2xl text-white mb-6 border border-purple-500/30">
-                    <div className="text-center"><span className="block text-2xl font-bold font-mono text-purple-300">{timeLeft.days}</span><span className="text-xs uppercase tracking-wider opacity-80">Days</span></div>
-                    <div className="w-[1px] bg-white/20"></div>
-                    <div className="text-center"><span className="block text-2xl font-bold font-mono text-purple-300">{timeLeft.hours}</span><span className="text-xs uppercase tracking-wider opacity-80">Hours</span></div>
-                </div>
-            );
-        };
-
         const LandingPage = ({ setActiveTab }) => {
-            const contactInfo = [
-                { title: "報警", number: "110", icon: "alert-circle" },
-                { title: "救護車", number: "119", icon: "heart" },
-                { title: "駐日代表處", number: "+81-3-3280-7811", icon: "phone" },
-                { title: "橫濱住宿", number: "+81-45-650-4711", desc: "Comfort Hotel" },
-                { title: "河口湖住宿", number: "+81-555-20-9000", desc: "Hotel Regina" },
-            ];
-            
             return (
                 <div className="animate-fade-in pt-16">
                     <div className="relative h-[85vh] w-full overflow-hidden">
@@ -405,13 +354,9 @@
                             src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg/1280px-Diamond_Fuji_seen_from_Lake_Tanuki_20090420.jpg" 
                             alt="Diamond Inverse Fuji" 
                             className="w-full h-full object-cover filter brightness-75" 
-                            onError={(e) => {
-                                // Fallback image just in case
-                                e.target.src = "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?q=80&w=2000&auto=format&fit=crop"; 
-                            }}
+                            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?q=80&w=2000&auto=format&fit=crop"; }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-purple-900/90 via-purple-900/20 to-transparent flex flex-col justify-center items-center text-white text-center px-4">
-                            <Countdown />
                             <div className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4 uppercase tracking-widest shadow-lg shadow-purple-500/50">2026.02.13 - 02.18</div>
                             <h1 className="text-4xl md:text-7xl font-bold mb-4 drop-shadow-xl font-serif">家族<span className="text-purple-400">富士新春旅</span></h1>
                             <div className="max-w-lg bg-black/40 backdrop-blur-sm p-6 rounded-2xl border border-white/10 mb-8">
@@ -426,39 +371,22 @@
                             <button onClick={() => setActiveTab('itinerary')} className="px-8 py-4 bg-white text-purple-900 rounded-full font-bold hover:bg-purple-50 transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center gap-2">查看詳細行程 <Icon name="calendar" size={18} /></button>
                         </div>
                     </div>
-                    <div className="bg-gray-900 text-white py-12 px-4">
-                        <div className="max-w-4xl mx-auto">
-                            <h3 className="text-xl font-bold mb-6 text-center text-purple-300">緊急聯絡 & 住宿資訊</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {contactInfo.map((info, idx) => (
-                                    <div key={idx} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex items-start gap-3">
-                                        <div className="mt-1 text-purple-400"><Icon name={info.icon || "home"} size={16}/></div>
-                                        <div>
-                                            <div className="font-bold text-sm text-gray-300">{info.title}</div>
-                                            <div className="font-mono text-lg font-bold text-white select-all">{info.number}</div>
-                                            {info.desc && <div className="text-xs text-gray-500">{info.desc}</div>}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
                 </div>
             );
         };
 
-        const Itinerary = ({ itineraryData, updateItinerary, isFirebaseEnabled, error, isOffline }) => {
+        const Itinerary = ({ data, updateData, isFirebaseEnabled, isOffline }) => {
             const [activeDay, setActiveDay] = useState(1);
             const [isEditing, setIsEditing] = useState(false);
             const [editData, setEditData] = useState([]);
             
-            const safeItineraryData = (Array.isArray(itineraryData) && itineraryData.length > 0) ? itineraryData : INITIAL_ITINERARY;
-            const currentItinerary = safeItineraryData.find(d => d.day === activeDay) || safeItineraryData[0];
+            const safeData = Array.isArray(data) ? data : INITIAL_ITINERARY;
+            const currentItinerary = safeData.find(d => d.day === activeDay) || safeData[0];
             const currentEditDay = isEditing ? (editData.find(d => d.day === activeDay) || editData[0]) : null;
 
             const handleEventChange = (dayIndex, eventIndex, field, value) => {
                 const newData = JSON.parse(JSON.stringify(editData));
-                if (newData[dayIndex] && newData[dayIndex].events[eventIndex]) {
+                if (newData[dayIndex]?.events[eventIndex]) {
                     newData[dayIndex].events[eventIndex][field] = value;
                     setEditData(newData);
                 }
@@ -473,21 +401,21 @@
             };
 
             const removeEvent = (dayIndex, eventIndex) => {
-                if(!confirm('確定刪除此活動?')) return;
+                if(!confirm('確定刪除?')) return;
                 const newData = JSON.parse(JSON.stringify(editData));
-                if (newData[dayIndex] && newData[dayIndex].events) {
+                if (newData[dayIndex]?.events) {
                     newData[dayIndex].events.splice(eventIndex, 1);
                     setEditData(newData);
                 }
             };
 
             const handleSave = async () => {
-                await updateItinerary(editData);
+                await updateData(editData);
                 setIsEditing(false);
             };
             
             const handleEditClick = () => {
-                setEditData(JSON.parse(JSON.stringify(safeItineraryData)));
+                setEditData(JSON.parse(JSON.stringify(safeData)));
                 setIsEditing(true);
             };
 
@@ -512,7 +440,7 @@
                     </div>
 
                     <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                        {safeItineraryData.map((item) => (
+                        {safeData.map((item) => (
                             <button key={item.day} onClick={() => setActiveDay(item.day)} className={`flex-shrink-0 px-4 py-3 rounded-xl border transition-all min-w-[100px] text-left ${activeDay === item.day ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200 transform scale-105' : 'bg-white text-gray-500 border-gray-200 hover:border-purple-300'}`}>
                                 <div className={`text-xs ${activeDay === item.day ? 'text-purple-200' : 'text-gray-400'}`}>Day {item.day}</div>
                                 <div className="font-bold text-sm">{item.date.split(' ')[0]}</div>
@@ -522,7 +450,6 @@
 
                     <div className="bg-white rounded-3xl shadow-xl shadow-purple-100 border border-purple-50 overflow-hidden min-h-[500px]">
                         <div className="bg-purple-600 px-6 py-5 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10"><Icon name="skull" size={100} className="text-white" /></div>
                             <h3 className="font-bold text-white text-xl relative z-10">{currentItinerary.title}</h3>
                             <div className="text-purple-200 text-sm mt-1 relative z-10 flex items-center gap-2"><Icon name="calendar" size={14} /> {currentItinerary.date}</div>
                         </div>
@@ -568,7 +495,6 @@
                                     )}
                                 </div>
                             ))}
-                            
                             {isEditing && (
                                 <button onClick={() => addEvent(activeDay-1)} className="mt-4 w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-xl hover:border-purple-500 hover:text-purple-600 transition-colors flex items-center justify-center gap-2">
                                     <Icon name="plus" size={16} /> 新增活動
@@ -580,56 +506,73 @@
             );
         };
 
-        const Gallery = () => {
-            const [photos, setPhotos] = useState(() => {
-                const saved = localStorage.getItem('trip_photos');
-                return saved ? JSON.parse(saved) : [
-                    { id: 1, url: "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "媽媽" },
-                    { id: 2, url: "https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?auto=format&fit=crop&w=800&q=80", enhanced: false, uploader: "姊姊" }
-                ];
-            });
+        const Gallery = ({ data, updateData }) => {
             const [uploading, setUploading] = useState(false);
-
-            useEffect(() => {
-                localStorage.setItem('trip_photos', JSON.stringify(photos));
-            }, [photos]);
+            const safeData = Array.isArray(data) ? data : INITIAL_PHOTOS;
 
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) {
                     setUploading(true);
+                    // 圖片壓縮邏輯：使用 Canvas 將圖片壓縮為較小的 Base64 字串，以便存入 Firestore (限制 1MB/doc)
                     const reader = new FileReader();
-                    reader.onloadend = () => {
-                        const newPhoto = { id: Date.now(), url: reader.result, enhanced: false, uploader: '我' };
-                        setPhotos([newPhoto, ...photos]);
-                        setUploading(false);
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            // 設定最大寬度 600px (平衡畫質與儲存空間)
+                            const maxWidth = 600; 
+                            const scale = maxWidth / img.width;
+                            const width = Math.min(img.width, maxWidth);
+                            const height = img.height * (width / img.width);
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            
+                            // 壓縮為 JPEG 0.6 品質
+                            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                            
+                            const newPhoto = {
+                                id: Date.now(),
+                                url: compressedBase64,
+                                enhanced: false,
+                                uploader: '家人'
+                            };
+                            updateData([newPhoto, ...safeData]);
+                            setUploading(false);
+                        };
+                        img.src = event.target.result;
                     };
                     reader.readAsDataURL(file);
                 }
             };
 
             const toggleEnhance = (id) => {
-                setPhotos(photos.map(p => p.id === id ? { ...p, enhanced: !p.enhanced } : p));
+                const newData = safeData.map(p => p.id === id ? { ...p, enhanced: !p.enhanced } : p);
+                updateData(newData);
             };
 
             const deletePhoto = (id) => {
                 if(confirm("確定要刪除這張照片嗎？")) {
-                     setPhotos(photos.filter(p => p.id !== id));
+                     const newData = safeData.filter(p => p.id !== id);
+                     updateData(newData);
                 }
             };
 
             return (
                 <div className="pt-20 pb-20 max-w-4xl mx-auto px-4 animate-fade-in">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <div><h2 className="text-2xl font-bold text-purple-900">影像紀錄</h2><p className="text-gray-500 text-sm">大家的精采回憶 (資料會存在這個裝置上)</p></div>
+                        <div><h2 className="text-2xl font-bold text-purple-900">影像紀錄</h2><p className="text-gray-500 text-sm">大家的精采回憶 (已開啟雲端同步)</p></div>
                         <label className="bg-purple-600 text-white px-5 py-2.5 rounded-full font-medium cursor-pointer hover:bg-purple-700 transition-colors shadow-lg flex items-center gap-2 active:scale-95 transform">
                             <Icon name="plus" size={18} /> 上傳照片
                             <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                         </label>
                     </div>
-                    {uploading && <div className="mb-6 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-3 animate-pulse"><Icon name="camera" className="animate-spin text-purple-500" size={32} /> <span className="text-purple-600 font-medium">庫洛米正在施法美化照片...</span></div>}
+                    {uploading && <div className="mb-6 p-6 bg-purple-50 rounded-2xl border border-purple-100 flex flex-col items-center justify-center gap-3 animate-pulse"><Icon name="camera" className="animate-spin text-purple-500" size={32} /> <span className="text-purple-600 font-medium">照片壓縮上傳中...</span></div>}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                        {photos.map((photo) => (
+                        {safeData.map((photo) => (
                             <div key={photo.id} className="relative group rounded-2xl overflow-hidden bg-gray-100 shadow-md aspect-square">
                                 <img src={photo.url} alt="Memory" className={`w-full h-full object-cover transition-all duration-700 ${photo.enhanced ? 'filter contrast-125 brightness-110 saturate-125' : ''}`} />
                                 {photo.enhanced && <div className="absolute top-3 right-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg z-10 flex items-center gap-1"><Icon name="wand-2" size={10} /> MAGIC</div>}
@@ -647,7 +590,30 @@
             );
         };
 
-        const Expenses = () => {
+        const Expenses = ({ data, updateData }) => {
+            const safeData = Array.isArray(data) ? data : INITIAL_EXPENSES;
+            const [newItem, setNewItem] = useState({ item: '', cost: '', category: 'food', payer: '' });
+            const [showForm, setShowForm] = useState(false);
+
+            const totalCost = safeData.reduce((sum, ex) => sum + Number(ex.cost), 0);
+            const avgCost = Math.round(totalCost / 9);
+
+            const handleAdd = async (e) => {
+                e.preventDefault();
+                if (!newItem.item || !newItem.cost) return;
+                const newExpense = { ...newItem, id: Date.now(), cost: Number(newItem.cost) };
+                await updateData([...safeData, newExpense]);
+                setNewItem({ item: '', cost: '', category: 'food', payer: '' });
+                setShowForm(false);
+            };
+
+            const handleDelete = async (id) => {
+                if(confirm('確定刪除此筆支出?')) {
+                    const newData = safeData.filter(e => e.id !== id);
+                    await updateData(newData);
+                }
+            };
+
             const expenseCategories = [
                 { id: 'transport', name: '交通', icon: 'plane', color: 'bg-blue-100 text-blue-600' },
                 { id: 'stay', name: '住宿', icon: 'bed', color: 'bg-purple-100 text-purple-600' },
@@ -655,35 +621,9 @@
                 { id: 'ticket', name: '門票', icon: 'ticket', color: 'bg-yellow-100 text-yellow-600' },
                 { id: 'shopping', name: '購物', icon: 'wallet', color: 'bg-green-100 text-green-600' },
             ];
-            
-            // 使用 LocalStorage
-            const [expenses, setExpenses] = useState(() => {
-                const saved = localStorage.getItem('trip_expenses');
-                return saved ? JSON.parse(saved) : [
-                    { id: 1, item: '六歌仙除夕晚餐訂金', cost: 18000, category: 'food', payer: '爸爸' },
-                    { id: 2, item: 'N\'EX 車票 (9人)', cost: 27000, category: 'transport', payer: '媽媽' }
-                ];
-            });
-            const [newItem, setNewItem] = useState({ item: '', cost: '', category: 'food', payer: '' });
-            const [showForm, setShowForm] = useState(false);
-
-            useEffect(() => {
-                localStorage.setItem('trip_expenses', JSON.stringify(expenses));
-            }, [expenses]);
-
-            const totalCost = expenses.reduce((sum, ex) => sum + Number(ex.cost), 0);
-            const avgCost = Math.round(totalCost / 9);
-
-            const handleAdd = (e) => {
-                e.preventDefault();
-                if (!newItem.item || !newItem.cost) return;
-                setExpenses([...expenses, { ...newItem, id: Date.now(), cost: Number(newItem.cost) }]);
-                setNewItem({ item: '', cost: '', category: 'food', payer: '' });
-                setShowForm(false);
-            };
 
             const categorySummary = expenseCategories.map(cat => {
-                const sum = expenses.filter(e => e.category === cat.id).reduce((acc, curr) => acc + curr.cost, 0);
+                const sum = safeData.filter(e => e.category === cat.id).reduce((acc, curr) => acc + curr.cost, 0);
                 return { ...cat, sum, percent: totalCost ? (sum / totalCost) * 100 : 0 };
             }).filter(c => c.sum > 0);
 
@@ -704,7 +644,7 @@
                         </div>
                     </div>
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Icon name="wallet" size={18} className="text-purple-600" /> 支出明細</h3>
+                        <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2"><Icon name="wallet" size={18} className="text-purple-600" /> 支出明細 (雲端同步)</h3>
                         <button onClick={() => setShowForm(!showForm)} className="bg-purple-600 text-white font-medium text-sm flex items-center gap-2 px-4 py-2 rounded-full shadow-md hover:bg-purple-700 transition-all active:scale-95">{showForm ? '取消' : <><Icon name="plus" size={16} /> 新增支出</>}</button>
                     </div>
                     {showForm && (
@@ -719,7 +659,7 @@
                         </form>
                     )}
                     <div className="space-y-3">
-                        {expenses.map((expense) => (
+                        {safeData.map((expense) => (
                             <div key={expense.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-purple-200 transition-all">
                                 <div className="flex items-center gap-4">
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${expenseCategories.find(c => c.id === expense.category)?.color}`}>{<Icon name={expenseCategories.find(c => c.id === expense.category)?.icon} size={20} />}</div>
@@ -727,7 +667,7 @@
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="font-bold font-mono text-gray-700 text-lg">¥ {expense.cost.toLocaleString()}</div>
-                                    <button onClick={() => setExpenses(expenses.filter(e => e.id !== expense.id))} className="text-gray-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"><Icon name="trash-2" size={18} /></button>
+                                    <button onClick={() => handleDelete(expense.id)} className="text-gray-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"><Icon name="trash-2" size={18} /></button>
                                 </div>
                             </div>
                         ))}
@@ -738,23 +678,55 @@
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('home');
-            const { itinerary, updateItinerary, isFirebaseEnabled, error } = useFirebaseItinerary();
+            
+            // 使用共用 Hook 來同步不同的資料集合
+            const itineraryData = useFirebaseData('itinerary', INITIAL_ITINERARY);
+            const galleryData = useFirebaseData('gallery', INITIAL_PHOTOS);
+            const expensesData = useFirebaseData('expenses', INITIAL_EXPENSES);
 
-            // v19: 移除所有全域 createIcons 呼叫，避免 DOM 衝突
-            // Icon 元件現在是自給自足的
+            // 統合錯誤與狀態
+            const anyError = itineraryData.error || galleryData.error || expensesData.error;
+            const anyOffline = itineraryData.isOffline || galleryData.isOffline || expensesData.isOffline;
+
+            useEffect(() => { 
+                // 只在第一次載入時嘗試初始化，Icon 元件會自己處理後續
+                if(window.lucide && window.lucide.createIcons) {
+                    window.lucide.createIcons();
+                }
+            }, []);
             
             return (
                 <div className="min-h-screen pb-10">
                     <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
                     
-                    {/* Global Error Banner displayed on top of any page */}
-                    <GlobalErrorBanner error={error} />
+                    {/* Global Error Banner */}
+                    <GlobalErrorBanner error={anyError} isOffline={anyOffline} />
 
                     <main>
                         {activeTab === 'home' && <LandingPage setActiveTab={setActiveTab} />}
-                        {activeTab === 'itinerary' && <Itinerary itineraryData={itinerary} updateItinerary={updateItinerary} isFirebaseEnabled={isFirebaseEnabled} />} 
-                        {activeTab === 'gallery' && <Gallery />}
-                        {activeTab === 'expenses' && <Expenses />}
+                        
+                        {activeTab === 'itinerary' && (
+                            <Itinerary 
+                                data={itineraryData.data} 
+                                updateData={itineraryData.updateData} 
+                                isFirebaseEnabled={itineraryData.isFirebaseEnabled} 
+                                isOffline={itineraryData.isOffline}
+                            />
+                        )}
+                        
+                        {activeTab === 'gallery' && (
+                            <Gallery 
+                                data={galleryData.data} 
+                                updateData={galleryData.updateData}
+                            />
+                        )}
+                        
+                        {activeTab === 'expenses' && (
+                            <Expenses 
+                                data={expensesData.data} 
+                                updateData={expensesData.updateData}
+                            />
+                        )}
                     </main>
                     <footer className="text-center py-8 text-purple-300/60 text-xs">
                         <p>© 2026 Kuromi Family Trip. Designed for Memories.</p>
