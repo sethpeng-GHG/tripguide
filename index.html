@@ -52,6 +52,12 @@
             background-color: #f3e8ff; /* purple-100 */
             border: 2px dashed #9333ea;
         }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="bg-[#FDF7FF] text-gray-900 selection:bg-purple-200">
@@ -415,31 +421,45 @@
                 }
             };
 
-            // --- 拖拉相關函式 ---
-            const handleDragStart = (index) => {
+            // --- 拖拉與排序相關函式 ---
+            const handleDragStart = (e, index) => {
                 setDraggedEventIndex(index);
+                e.dataTransfer.effectAllowed = "move";
+                // 必須設定 setData 才能讓 Firefox 啟動拖拉
+                e.dataTransfer.setData("text/plain", index);
             };
 
             const handleDragOver = (e) => {
-                e.preventDefault(); // 必須阻止預設行為才能 drop
+                e.preventDefault(); 
             };
 
             const handleDrop = (dropIndex) => {
                 if (draggedEventIndex === null || draggedEventIndex === dropIndex) return;
                 
                 const newData = JSON.parse(JSON.stringify(editData));
-                const dayIndex = activeDay - 1; // 假設 activeDay 1 對應 index 0
+                const dayIndex = activeDay - 1; 
                 
                 if (newData[dayIndex] && newData[dayIndex].events) {
                     const events = newData[dayIndex].events;
-                    // 取出被拖曳的項目
                     const [reorderedItem] = events.splice(draggedEventIndex, 1);
-                    // 插入到新位置
                     events.splice(dropIndex, 0, reorderedItem);
-                    
                     setEditData(newData);
                 }
                 setDraggedEventIndex(null);
+            };
+
+            // 上下移動按鈕 (替代拖拉方案)
+            const moveEvent = (index, direction) => {
+                const newData = JSON.parse(JSON.stringify(editData));
+                const dayIndex = activeDay - 1;
+                const events = newData[dayIndex].events;
+
+                if (direction === 'up' && index > 0) {
+                    [events[index], events[index - 1]] = [events[index - 1], events[index]];
+                } else if (direction === 'down' && index < events.length - 1) {
+                    [events[index], events[index + 1]] = [events[index + 1], events[index]];
+                }
+                setEditData(newData);
             };
 
             const handleSave = async () => {
@@ -495,7 +515,7 @@
                                     key={index} 
                                     className={`relative pl-8 pb-8 last:pb-0 group ${isEditing ? 'cursor-move' : ''}`}
                                     draggable={isEditing}
-                                    onDragStart={() => isEditing && handleDragStart(index)}
+                                    onDragStart={(e) => isEditing && handleDragStart(e, index)}
                                     onDragOver={isEditing ? handleDragOver : null}
                                     onDrop={() => isEditing && handleDrop(index)}
                                 >
@@ -507,9 +527,21 @@
 
                                     {isEditing ? (
                                         <div className={`bg-gray-50 p-3 rounded-lg border border-gray-200 transition-all ${draggedEventIndex === index ? 'dragging opacity-50 border-purple-500' : ''}`}>
-                                            <div className="flex justify-center mb-2 text-gray-400">
-                                                <Icon name="grip-horizontal" size={20} />
+                                            {/* 拖拉與排序控制區 */}
+                                            <div className="flex justify-between items-center mb-2 bg-gray-100 p-2 rounded">
+                                                <div className="text-gray-400 drag-handle cursor-grab active:cursor-grabbing" title="按住拖曳排序">
+                                                    <Icon name="move" size={20} />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => moveEvent(index, 'up')} className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30" disabled={index === 0}>
+                                                        <Icon name="arrow-up" size={16} />
+                                                    </button>
+                                                    <button onClick={() => moveEvent(index, 'down')} className="p-1 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30" disabled={index === (currentEditDay.events.length - 1)}>
+                                                        <Icon name="arrow-down" size={16} />
+                                                    </button>
+                                                </div>
                                             </div>
+
                                             <div className="grid grid-cols-2 gap-2 mb-2">
                                                 <input className="p-1 border rounded text-sm" value={event.time} onChange={(e) => handleEventChange(activeDay-1, index, 'time', e.target.value)} placeholder="時間" />
                                                 <select className="p-1 border rounded text-sm" value={event.type} onChange={(e) => handleEventChange(activeDay-1, index, 'type', e.target.value)}>
