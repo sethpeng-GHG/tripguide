@@ -46,6 +46,12 @@
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         input, select { font-size: 16px; }
+        /* 拖曳時的樣式 */
+        .dragging {
+            opacity: 0.5;
+            background-color: #f3e8ff; /* purple-100 */
+            border: 2px dashed #9333ea;
+        }
     </style>
 </head>
 <body class="bg-[#FDF7FF] text-gray-900 selection:bg-purple-200">
@@ -215,7 +221,6 @@
 
                         auth.onAuthStateChanged((user) => {
                             if (user && mounted.current) {
-                                // 路徑：artifacts/{projectId}/public/data/{collectionName}/main
                                 const appId = "trip-itinerary-ce0c8"; 
                                 const docRef = firestore.collection('artifacts').doc(appId)
                                                         .collection('public').doc('data')
@@ -379,6 +384,7 @@
             const [activeDay, setActiveDay] = useState(1);
             const [isEditing, setIsEditing] = useState(false);
             const [editData, setEditData] = useState([]);
+            const [draggedEventIndex, setDraggedEventIndex] = useState(null);
             
             const safeData = Array.isArray(data) ? data : INITIAL_ITINERARY;
             const currentItinerary = safeData.find(d => d.day === activeDay) || safeData[0];
@@ -407,6 +413,33 @@
                     newData[dayIndex].events.splice(eventIndex, 1);
                     setEditData(newData);
                 }
+            };
+
+            // --- 拖拉相關函式 ---
+            const handleDragStart = (index) => {
+                setDraggedEventIndex(index);
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault(); // 必須阻止預設行為才能 drop
+            };
+
+            const handleDrop = (dropIndex) => {
+                if (draggedEventIndex === null || draggedEventIndex === dropIndex) return;
+                
+                const newData = JSON.parse(JSON.stringify(editData));
+                const dayIndex = activeDay - 1; // 假設 activeDay 1 對應 index 0
+                
+                if (newData[dayIndex] && newData[dayIndex].events) {
+                    const events = newData[dayIndex].events;
+                    // 取出被拖曳的項目
+                    const [reorderedItem] = events.splice(draggedEventIndex, 1);
+                    // 插入到新位置
+                    events.splice(dropIndex, 0, reorderedItem);
+                    
+                    setEditData(newData);
+                }
+                setDraggedEventIndex(null);
             };
 
             const handleSave = async () => {
@@ -458,7 +491,14 @@
                         
                         <div className="p-6">
                             {(isEditing && currentEditDay ? currentEditDay.events : currentItinerary.events).map((event, index) => (
-                                <div key={index} className="relative pl-8 pb-8 last:pb-0 group">
+                                <div 
+                                    key={index} 
+                                    className={`relative pl-8 pb-8 last:pb-0 group ${isEditing ? 'cursor-move' : ''}`}
+                                    draggable={isEditing}
+                                    onDragStart={() => isEditing && handleDragStart(index)}
+                                    onDragOver={isEditing ? handleDragOver : null}
+                                    onDrop={() => isEditing && handleDrop(index)}
+                                >
                                     {!isEditing && index !== currentItinerary.events.length - 1 && <div className="absolute left-[11px] top-3 bottom-0 w-0.5 bg-gray-100 group-hover:bg-purple-200 transition-colors"></div>}
                                     
                                     <div className={`absolute left-0 top-1.5 w-6 h-6 rounded-full border-2 border-white shadow-md flex items-center justify-center z-10 ${event.type === 'decision' ? 'bg-pink-500 text-white' : 'bg-purple-100 text-purple-600'}`}>
@@ -466,7 +506,10 @@
                                     </div>
 
                                     {isEditing ? (
-                                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                        <div className={`bg-gray-50 p-3 rounded-lg border border-gray-200 transition-all ${draggedEventIndex === index ? 'dragging opacity-50 border-purple-500' : ''}`}>
+                                            <div className="flex justify-center mb-2 text-gray-400">
+                                                <Icon name="grip-horizontal" size={20} />
+                                            </div>
                                             <div className="grid grid-cols-2 gap-2 mb-2">
                                                 <input className="p-1 border rounded text-sm" value={event.time} onChange={(e) => handleEventChange(activeDay-1, index, 'time', e.target.value)} placeholder="時間" />
                                                 <select className="p-1 border rounded text-sm" value={event.type} onChange={(e) => handleEventChange(activeDay-1, index, 'type', e.target.value)}>
