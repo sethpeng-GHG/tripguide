@@ -111,11 +111,17 @@
                 ]
             },
             {
-                day: 2, date: "2026/02/14 (六)", title: "抉擇：粉紅櫻花 vs 古都鎌倉", stay: "Hotel Regina Kawaguchiko",
-                note: "命運的抉擇點！看花況決定去哪邊！",
+                day: 2, date: "2026/02/14 (六)", title: "伊豆河津櫻：粉紅色的早春序曲", stay: "Hotel Regina Kawaguchiko",
+                note: "早春賞櫻日！請準備好相機。",
                 events: [
-                    { time: "08:30", activity: "飯店集合出發", location: "橫濱", type: "transport" },
-                    { time: "09:00", activity: "【命運抉擇點】Plan A 河津櫻或 Plan B鎌倉江之島", location: "決策時刻", type: "decision" },
+                    { time: "08:00", activity: "飯店集合出發", location: "コンフォートホテル横浜関内", type: "transport" },
+                    { time: "09:30", activity: "伊東 Marine Town (上廁所、補給、逛逛)", location: "伊東", type: "food" },
+                    { time: "11:30", activity: "抵達河津町 & 廁所", location: "峰溫泉公園", type: "activity" },
+                    { time: "11:40~12:40", activity: "櫻花道散策 & 屋台吃吃喝喝", location: "河津川西岸", type: "activity" },
+                    { time: "12:40~13:00", activity: "參拜 & 廁所，寫御朱印", location: "川津來宮神社", type: "activity" },
+                    { time: "13:00~13:20", activity: "櫻花道散策", location: "觀光交流館、河津櫻原木", type: "activity" },
+                    { time: "13:20~14:20", activity: "看噴泉煮溫泉蛋，買伴手禮", location: "峰溫泉公園、踊子溫泉會館", type: "activity" },
+                    { time: "14:30~17:00", activity: "河津七瀧高架橋、道の駅 天城越え (芥末冰淇淋)", location: "前往河口湖路程", type: "transport" },
                     { time: "17:00", activity: "抵達河口湖飯店 Check-in", location: "ホテルレジーナ河口湖", type: "stay" },
                     { time: "18:00", activity: "飯店懷石料理晚餐", location: "飯店餐廳", type: "food" },
                     { time: "19:00～20:00", activity: "逛超市", location: "河口湖ショッピングセンター ＢＥＬＬ", type: "shopping" },
@@ -313,10 +319,12 @@
             const [weather, setWeather] = useState({});
             const [loading, setLoading] = useState(true);
 
+            // 修正：更新天氣地點與座標
             const LOCATIONS = [
                 { id: 'yokohama', name: '橫濱 (Yokohama)', lat: 35.4437, lon: 139.6380, tenkiUrl: 'https://tenki.jp/forecast/3/17/4610/14100/' },
+                { id: 'izu', name: '河津町 (Kawazu)', lat: 34.7755, lon: 138.9952, tenkiUrl: 'https://tenki.jp/forecast/5/26/5030/22302/' },
                 { id: 'fuji', name: '河口湖 (Fuji)', lat: 35.4929, lon: 138.7609, tenkiUrl: 'https://tenki.jp/forecast/3/22/4920/19430/' },
-                { id: 'tokyo', name: '東京 (Tokyo)', lat: 35.6895, lon: 139.6917, tenkiUrl: 'https://tenki.jp/forecast/3/16/4410/13104/' },
+                { id: 'tokyo', name: '新宿 (Shinjuku)', lat: 35.6938, lon: 139.7034, tenkiUrl: 'https://tenki.jp/forecast/3/16/4410/13104/' },
             ];
 
             useEffect(() => {
@@ -356,7 +364,7 @@
                         <Icon name="cloud-sun" className="text-purple-600" />
                         <h3 className="font-bold text-gray-700">天氣預報 (Tenki.jp)</h3>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {LOCATIONS.map(loc => {
                             const data = weather[loc.id];
                             return (
@@ -365,24 +373,23 @@
                                     href={loc.tenkiUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="bg-white p-4 rounded-xl border border-purple-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between group"
+                                    className="bg-white p-3 rounded-xl border border-purple-100 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row items-center justify-between group"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${data?.error ? 'bg-gray-100' : 'bg-purple-50 text-purple-600'}`}>
-                                            {loading ? <div className="animate-spin w-4 h-4 border-2 border-purple-500 rounded-full border-t-transparent"></div> : 
-                                             <Icon name={data?.error ? 'alert-circle' : getWeatherIcon(data?.code)} size={20} />}
+                                    <div className="flex items-center gap-2 mb-2 sm:mb-0">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${data?.error ? 'bg-gray-100' : 'bg-purple-50 text-purple-600'}`}>
+                                            {loading ? <div className="animate-spin w-3 h-3 border-2 border-purple-500 rounded-full border-t-transparent"></div> : 
+                                             <Icon name={data?.error ? 'alert-circle' : getWeatherIcon(data?.code)} size={16} />}
                                         </div>
                                         <div>
                                             <div className="font-bold text-sm text-gray-800">{loc.name.split(' ')[0]}</div>
-                                            <div className="text-xs text-gray-400">點擊查看詳情</div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right flex items-center gap-2">
                                         {data && !data.error && !loading && (
-                                            <div className="font-mono font-bold text-lg text-purple-700">{data.temp}°C</div>
+                                            <div className="font-mono font-bold text-base text-purple-700">{data.temp}°</div>
                                         )}
                                         <div className="text-gray-300 group-hover:text-purple-400 transition-colors">
-                                            <Icon name="external-link" size={14} />
+                                            <Icon name="external-link" size={12} />
                                         </div>
                                     </div>
                                 </a>
